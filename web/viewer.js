@@ -27,6 +27,85 @@ window.PDFViewerApplication = PDFViewerApplication;
 window.PDFViewerApplicationConstants = AppConstants;
 window.PDFViewerApplicationOptions = AppOptions;
 
+/* ========== CONFIGURACIÓN INDEXEDDB ========== */
+const DB_NAME = "PDFCommentsDB";
+const DB_VERSION = 1;
+let db = null;
+
+const initDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(DB_NAME, DB_VERSION);
+
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains('comments')) {
+        db.createObjectStore('comments', { keyPath: 'id' });
+      }
+    };
+
+    request.onsuccess = (event) => {
+      db = event.target.result;
+      resolve(db);
+    };
+
+    request.onerror = (event) => {
+      console.error("Error al abrir IndexedDB:", event.target.error);
+      reject(event.target.error);
+    };
+  });
+};
+
+async function saveComment(comment) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('comments', 'readwrite');
+    const store = tx.objectStore('comments');
+    const request = store.add(comment);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function getAllComments() {
+  const tx = db.transaction('comments', 'readonly');
+  const store = tx.objectStore('comments');
+  return new Promise((resolve) => {
+    store.getAll().onsuccess = (event) => resolve(event.target.result || []);
+  });
+}
+
+async function getCommentById(id) {
+  const tx = db.transaction('comments', 'readonly');
+  const store = tx.objectStore('comments');
+  return new Promise((resolve) => {
+    store.get(id).onsuccess = (event) => resolve(event.target.result);
+  });
+}
+
+async function updateComment(comment) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('comments', 'readwrite');
+    const store = tx.objectStore('comments');
+    const request = store.put(comment); // <- "put" es para editar
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+async function deleteComment(id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('comments', 'readwrite');
+    const store = tx.objectStore('comments');
+    const request = store.delete(id);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// fin database
+
 function getViewerConfiguration() {
   return {
     appContainer: document.body,
@@ -303,6 +382,140 @@ if (
 } else {
   document.addEventListener("DOMContentLoaded", webViewerLoad, true);
 }
+
+/* ========== LÓGICA DE COMENTARIOS ========== */
+function highlightText(position, pageNumber) {
+  // Limpiar resaltados anteriores
+  document.querySelectorAll('.text-highlight').forEach(el => el.remove());
+
+  const pageElement = document.querySelector(`.page[data-page-number="${pageNumber}"]`);
+  if (!pageElement) return;
+
+  const viewport = pageElement.querySelector('.canvasWrapper canvas')?.getContext('2d')?.canvas?.viewport;
+  const scale = PDFViewerApplication.pdfViewer.currentScale; // escala actual del visor
+
+  // Crear un resaltado tipo caja, con alto y ancho proporcional al zoom
+  const highlight = document.createElement('div');
+  highlight.className = 'text-highlight';
+  Object.assign(highlight.style, {
+    position: 'absolute',
+    left: `${position.x * scale}px`,
+    top: `${position.y * scale}px`,
+    width: `${position.width * scale}px`,
+    height: `${position.height * scale}px`, // ahora cubre toda la altura seleccionada
+    backgroundColor: 'rgba(255, 230, 100, 0.4)',
+    borderRadius: '3px',
+    pointerEvents: 'none'
+  });
+
+  // Agregar resaltado al DOM
+  const textLayer = pageElement.querySelector('.textLayer');
+  if (textLayer) {
+    textLayer.appendChild(highlight);
+    setTimeout(() => highlight.remove(), 15000);
+  }
+}
+
+async function renderCommentsList() {
+  try {
+    const comments = await getAllComments();
+    const list = document.getElementById('commentsList');
+    list.innerHTML = comments.map(comment => `
+      <li data-id="${comment.id}">
+        <strong>Pág. ${comment.pageNumber}:</strong> ${comment.text}
+        <button class="edit-comment">Editar</button>
+        <button class="delete-comment">Eliminar</button>
+      </li>
+    `).join('');
+
+    list.querySelectorAll('li').forEach(item => {
+      const commentId = parseInt(item.dataset.id);
+
+      item.querySelector('.edit-comment').addEventListener('click', async () => {
+        const originalComment = await getCommentById(commentId);
+        const newText = prompt("Edita tu comentario:", originalComment.text);
+        if (newText && newText.trim() !== "") {
+          originalComment.text = newText.trim();
+          await updateComment(originalComment);
+          renderCommentsList();
+        }
+      });
+
+      item.querySelector('.delete-comment').addEventListener('click', async () => {
+        const confirmed = confirm("¿Estás seguro de que querés eliminar este comentario?");
+        if (confirmed) {
+          await deleteComment(commentId);
+          renderCommentsList();
+        }
+      });
+
+      // Al hacer click en el comentario (no en los botones), ir al texto
+      item.addEventListener('click', async (e) => {
+        if (e.target.classList.contains('edit-comment') || e.target.classList.contains('delete-comment')) return;
+
+        const comment = await getCommentById(commentId);
+        PDFViewerApplication.page = comment.pageNumber;
+
+        setTimeout(() => {
+          highlightText(comment.position, comment.pageNumber);
+          const pageElement = document.querySelector(`.page[data-page-number="${comment.pageNumber}"]`);
+          if (pageElement) {
+            pageElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }, 500);
+      });
+    });
+  } catch (error) {
+    console.error("Error renderizando comentarios:", error);
+  }
+}
+
+document.addEventListener('mouseup', async () => {
+  const selection = window.getSelection();
+  const selectedText = selection.toString().trim();
+
+  if (!selectedText) return;
+
+  const range = selection.getRangeAt(0);
+  const pageElement = range.startContainer.parentElement.closest('.page');
+  if (!pageElement) return;
+
+  const textLayer = pageElement.querySelector('.textLayer');
+  const textLayerRect = textLayer.getBoundingClientRect();
+  const rangeRect = range.getBoundingClientRect();
+
+  const scale = pageElement.dataset.scale
+    ? parseFloat(pageElement.dataset.scale)
+    : PDFViewerApplication.pdfViewer._currentScale; // backup
+
+  // Coordenadas relativas a la capa de texto y escala del PDF
+  const position = {
+    x: (rangeRect.left - textLayerRect.left) / scale,
+    y: (rangeRect.top - textLayerRect.top) / scale,
+    width: rangeRect.width / scale,
+    height: rangeRect.height / scale
+  };
+
+  const commentText = prompt("Añade tu comentario:");
+  if (commentText) {
+    await saveComment({
+      id: Date.now(),
+      text: commentText,
+      pageNumber: parseInt(pageElement.dataset.pageNumber),
+      position,
+      selectedText
+    });
+    renderCommentsList();
+  }
+});
+
+// Inicialización
+PDFViewerApplication.initializedPromise.then(async () => {
+  await initDB();
+  renderCommentsList();
+});
+
+// fin logica
 
 export {
   PDFViewerApplication,

@@ -1660,3 +1660,64 @@ dialog :link {
     display: none;
   }
 }
+
+/* ===== Panel de Comentarios ===== */
+#comment-panel {
+  transition: transform 0.3s ease;
+  width: 250px;
+  position: fixed;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background-color: var(--sidebar-bg-color);
+  border-left: 1px solid var(--sidebar-border-bg-color);
+  box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px;
+  word-wrap: break-word;
+  white-space: normal;
+}
+
+
+#commentsList {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0;
+}
+
+#commentsList li {
+  cursor: pointer;
+  padding: 8px;
+  margin: 5px 0;
+  border-radius: 4px;
+  background-color: var(--button-hover-color);
+  transition: background-color 0.2s;
+  word-wrap: break-word;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+
+#commentsList li:hover {
+  background-color: var(--toggled-btn-bg-color);
+}
+
+#commentsList li strong {
+  color: var(--main-color);
+}
+
+/* ===== Resaltado de Texto ===== */
+.text-highlight {
+  z-index: 50;
+  animation: fadeIn 0.2s ease-out;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(2px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/*Fin aplicaciones panel*/
