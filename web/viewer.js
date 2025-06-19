@@ -509,10 +509,36 @@ document.addEventListener('mouseup', async () => {
   }
 });
 
+/* ===== TOGGLE PANEL DE COMENTARIOS ===== */
+function setupCommentsPanelToggle() {
+  const toggleButton = document.getElementById('toggleCommentsPanel');
+  const commentsPanel = document.getElementById('comment-panel');
+
+  // Estado inicial (oculto por defecto)
+  let panelVisible = false;
+  commentsPanel.classList.add('hidden');
+
+  toggleButton.addEventListener('click', () => {
+    panelVisible = !panelVisible;
+    
+    if (panelVisible) {
+      commentsPanel.classList.remove('hidden');
+      toggleButton.classList.add('toggled');
+    } else {
+      commentsPanel.classList.add('hidden');
+      toggleButton.classList.remove('toggled');
+    }
+    
+    // Redimensionar el visor del PDF
+    PDFViewerApplication.pdfViewer.currentScaleValue = PDFViewerApplication.pdfViewer.currentScaleValue;
+  });
+}
+
 // Inicialización
 PDFViewerApplication.initializedPromise.then(async () => {
   await initDB();
   renderCommentsList();
+  setupCommentsPanelToggle();
 });
 
 // fin logica
