@@ -1044,6 +1044,7 @@ dialog :link {
   }
 }
 
+
 .toolbarButtonWithContainer {
   height: 100%;
   aspect-ratio: 1;
@@ -1662,30 +1663,64 @@ dialog :link {
 }
 
 /* ===== Panel de Comentarios ===== */
-#comment-panel {
+/* ===== PANEL DE COMENTARIOS (RESPONSIVE Y FUNCIONAL) ===== */
+
+#viewerContainer {
+  display: flex;
+  flex-direction: row;
+  transition: width 0.3s ease;
+}
+
+#viewer {
+  flex-grow: 1;
   transition: transform 0.3s ease;
-  transform: translateX(0);
-  width: 250px;
+}
+
+#comment-panel {
   position: fixed;
-  right: 0;
   top: 0;
-  bottom: 0;
-  background-color: var(--sidebar-bg-color);
-  border-left: 1px solid var(--sidebar-border-bg-color);
+  right: 0;
+  width: min(320px, 40vw);
+  height: 100vh;
+  background-color: var(--doorhanger-bg-color);
+  border-left: 1px solid var(--doorhanger-border-color);
   box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
   z-index: 1000;
   overflow-y: auto;
-  overflow-x: hidden;
   padding: 10px;
-  word-wrap: break-word;
-  white-space: normal;
+  
+  display: none;
+  flex-shrink: 0;
+}
+
+#comment-panel.visible {
+  transform: translateX(0);
+  opacity: 1;
+  visibility: visible;
+}
+
+#comment-panel.open {      /* <-- MOSTRAR usando clase "open" */
+  display: block !important;
+}
+
+#comment-panel:not(.open) {
+  display: none;
 }
 
 
+/* Margen al viewer cuando el panel está abierto */
+#outerContainer.withCommentsOpen #viewerContainer {
+  margin-right: min(320px, 40vw);
+  transition: margin 0.3s ease;
+}
+
+/* Lista de comentarios */
 #commentsList {
   list-style: none;
   padding: 0;
-  margin: 10px 0;
+  margin: 0;
+  font-size: 14px;
+  color: var(--main-color);
 }
 
 #commentsList li {
@@ -1694,6 +1729,8 @@ dialog :link {
   margin: 5px 0;
   border-radius: 4px;
   background-color: var(--button-hover-color);
+  color: var(--main-color);
+  border: 1px solid var(--separator-color);
   transition: background-color 0.2s;
   word-wrap: break-word;
   white-space: normal;
@@ -1705,9 +1742,20 @@ dialog :link {
   background-color: var(--toggled-btn-bg-color);
 }
 
+#commentsList li button {
+  background-color: var(--dialog-button-bg-color);
+  color: var(--main-color);
+  border: none;
+  border-radius: 2px;
+  padding: 2px 8px;
+  margin-left: 4px;
+  cursor: pointer;
+}
+
 #commentsList li strong {
   color: var(--main-color);
 }
+
 
 /* ===== Resaltado de Texto ===== */
 .text-highlight {
@@ -1724,36 +1772,6 @@ dialog :link {
   padding: 4px 8px;
 }
 
-/* Estilo para el icono SVG */
-#toggleCommentsPanel .button-icon svg {
-  width: 16px;
-  height: 16px;
-  vertical-align: middle;
-  margin-right: 4px;
-}
-
-/* Color del icono cuando está activo */
-#toggleCommentsPanel.toggled .toolbarButtonCommentIcon {
-  background-color: var(--toggled-btn-color);
-}
-
-#toggleCommentsPanel.toggled {
-  background-color: var(--toggled-btn-bg-color);
-}
-
-#comment-panel.hidden {
-  transform: translateX(100%);
-}
-
-#toggleCommentsPanel .button-icon svg path {
-  fill: var(--toolbar-icon-color);
-}
-
-#toggleCommentsPanel .comment-icon path {
-  fill: var(--toolbar-icon-color) !important;
-}
-
-
 
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(2px); }
@@ -1761,3 +1779,5 @@ dialog :link {
 }
 
 /*Fin aplicaciones panel*/
+
+

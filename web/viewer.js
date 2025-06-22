@@ -383,6 +383,21 @@ if (
   document.addEventListener("DOMContentLoaded", webViewerLoad, true);
 }
 
+/* === MODO COMENTARIOS – estado global === */
+let commentModeActive = false;
+
+/* El botón de la toolbar debe tener id="toggleCommentMode" */
+const commentButton = document.querySelector(".toggleCommentMode");
+
+if (commentButton) {
+  commentButton.addEventListener("click", () => {
+    commentModeActive = !commentModeActive;                 // toggle
+    commentButton.classList.toggle("toggled", commentModeActive);
+  });
+}
+
+
+
 /* ========== LÓGICA DE COMENTARIOS ========== */
 function highlightText(position, pageNumber) {
   // Limpiar resaltados anteriores
@@ -473,7 +488,7 @@ async function renderCommentsList() {
 document.addEventListener('mouseup', async () => {
   const selection = window.getSelection();
   const selectedText = selection.toString().trim();
-
+  if (!commentModeActive) return;   // IGNORAR si no está activo el modo comentario
   if (!selectedText) return;
 
   const range = selection.getRangeAt(0);
@@ -516,22 +531,22 @@ function setupCommentsPanelToggle() {
 
   // Estado inicial (oculto por defecto)
   let panelVisible = false;
-  commentsPanel.classList.add('hidden');
+  commentsPanel.classList.remove('open'); // Ocultamos por defecto
 
   toggleButton.addEventListener('click', () => {
     panelVisible = !panelVisible;
-    
     if (panelVisible) {
-      commentsPanel.classList.remove('hidden');
-      toggleButton.classList.add('toggled');
+      commentsPanel.classList.add('open');
+      renderCommentsList(); // vuelve a renderizar los comentarios cuando se abre el panel
     } else {
-      commentsPanel.classList.add('hidden');
-      toggleButton.classList.remove('toggled');
+      commentsPanel.classList.remove('open');
     }
     
-    // Redimensionar el visor del PDF
-    PDFViewerApplication.pdfViewer.currentScaleValue = PDFViewerApplication.pdfViewer.currentScaleValue;
+    document.getElementById('outerContainer')
+          .classList.toggle('withCommentsOpen', panelVisible);
+    
   });
+
 }
 
 // Inicialización
@@ -548,3 +563,4 @@ export {
   AppConstants as PDFViewerApplicationConstants,
   AppOptions as PDFViewerApplicationOptions,
 };
+
