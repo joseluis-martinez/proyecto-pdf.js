@@ -55,11 +55,53 @@ const initDB = () => {
   });
 };
 
+async function showCommentDialog(initialText = "") {
+  return new Promise((resolve) => {
+    // 1. Estructura del modal
+    const wrapper = document.createElement("div");
+    wrapper.id = "commentDialog";
+    wrapper.style.cssText = `
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,.4);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 2000;
+    `;
+    wrapper.innerHTML = `
+      <div style="
+        background:#fff; padding:16px; border-radius:6px;
+        max-width:90%; width:400px; box-shadow:0 2px 8px rgba(0,0,0,.3);
+      ">
+        <textarea id="commentInput" rows="6" style="width:100%;resize:vertical;">${initialText}</textarea>
+        <div style="text-align:right; margin-top:8px;">
+          <button id="commentCancel">Cancelar</button>
+          <button id="commentOk">Aceptar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(wrapper);
+    const $ok = wrapper.querySelector("#commentOk");
+    const $cancel = wrapper.querySelector("#commentCancel");
+    const $input = wrapper.querySelector("#commentInput");
+    $input.focus();
+
+    // 2. handlers
+    const close = (val) => {
+      document.body.removeChild(wrapper);
+      resolve(val);          // puede ser string o null
+    };
+    $ok.addEventListener("click", () => close($input.value.trim() || null));
+    $cancel.addEventListener("click", () => close(null));
+    wrapper.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") close(null);
+      if (e.key === "Enter" && e.ctrlKey) close($input.value.trim() || null);
+    });
+  });
+}
+
 async function saveComment(comment) {
   return new Promise((resolve, reject) => {
     const tx = db.transaction('comments', 'readwrite');
     const store = tx.objectStore('comments');
-    const request = store.add(comment);
+    const request = store.put(comment);
 
     request.onsuccess = () => resolve(true);
     request.onerror = () => reject(request.error);
@@ -448,7 +490,7 @@ async function renderCommentsList() {
 
       item.querySelector('.edit-comment').addEventListener('click', async () => {
         const originalComment = await getCommentById(commentId);
-        const newText = prompt("Edita tu comentario:", originalComment.text);
+        const newText = await showCommentDialog(originalComment.text);
         if (newText && newText.trim() !== "") {
           originalComment.text = newText.trim();
           await updateComment(originalComment);
@@ -511,7 +553,8 @@ document.addEventListener('mouseup', async () => {
     height: rangeRect.height / scale
   };
 
-  const commentText = prompt("Añade tu comentario:");
+  
+  const commentText = await showCommentDialog();
   if (commentText) {
     await saveComment({
       id: Date.now(),
@@ -554,6 +597,61 @@ PDFViewerApplication.initializedPromise.then(async () => {
   await initDB();
   renderCommentsList();
   setupCommentsPanelToggle();
+
+  // 🧹 Limpiar comentarios previos cada vez que se recarga la página
+  window.addEventListener("beforeunload", () => {
+    const tx = db.transaction("comments", "readwrite");
+    const store = tx.objectStore("comments");
+    store.clear();
+  });
+  
+  // 🔽 Agregar exportador de comentarios como JSON
+  const exportBtn = document.getElementById("exportCommentsBtn");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", async () => {
+      const comments = await getAllComments();
+      const blob = new Blob([JSON.stringify(comments, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "comentarios.pdf.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  // 🔽 Agregar importador de comentarios desde JSON
+  const importInput = document.getElementById("importCommentsInput");
+  if (importInput) {
+    importInput.addEventListener("change", async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const text = await file.text();
+      let comments;
+      try {
+        comments = JSON.parse(text);
+        if (!Array.isArray(comments)) throw new Error();
+      } catch {
+        alert("El archivo no contiene un formato de comentarios válido.");
+        return;
+      }
+
+      const tx = db.transaction("comments", "readwrite");
+      const store = tx.objectStore("comments");
+
+      for (const comment of comments) {
+        store.put(comment);
+      }
+
+      renderCommentsList();
+      alert("Comentarios importados correctamente.");
+    });
+  }
+
 });
 
 // fin logica

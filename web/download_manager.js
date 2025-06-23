@@ -16,6 +16,7 @@
 /** @typedef {import("./interfaces").IDownloadManager} IDownloadManager */
 
 import { createValidAbsoluteUrl, isPdfFile } from "pdfjs-lib";
+import { PDFViewerApplication } from "./viewer.js";
 
 if (typeof PDFJSDev !== "undefined" && !PDFJSDev.test("CHROME || GENERIC")) {
   throw new Error(
@@ -105,18 +106,20 @@ class DownloadManager {
     return false;
   }
 
-  download(data, url, filename) {
+  async download(data, url, filename) {
+    if (!data && PDFViewerApplication?.pdfDocument) {
+        const xfdf = PDFViewerApplication.pdfViewer.annotationStorage.serialize();
+        data = await PDFViewerApplication.pdfDocument.saveDocument({ xfdfString: xfdf });
+    } 
     let blobUrl;
     if (data) {
-      blobUrl = URL.createObjectURL(
-        new Blob([data], { type: "application/pdf" })
-      );
+        blobUrl = URL.createObjectURL(new Blob([data], { type: "application/pdf" }));
     } else {
-      if (!createValidAbsoluteUrl(url, "http://example.com")) {
-        console.error(`download - not a valid URL: ${url}`);
-        return;
-      }
-      blobUrl = url + "#pdfjs.action=download";
+        if (!createValidAbsoluteUrl(url, "http://example.com")) {
+            console.error(`download - not a valid URL: ${url}`);
+            return;
+        }
+        blobUrl = url + "#pdfjs.action=download";
     }
     download(blobUrl, filename);
   }

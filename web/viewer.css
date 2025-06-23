@@ -1780,4 +1780,23 @@ dialog :link {
 
 /*Fin aplicaciones panel*/
 
+/* diálogo textarea */
+#commentDialog textarea {
+  font-size: 14px;
+}
+#commentDialog button {
+  padding: 4px 8px;
+  margin-left: 4px;
+}
+
+#exportCommentsBtn,
+#importLabel ,
+#toggleCommentsPanel{
+  padding: 0;
+  width: 22px;
+  height: 30px;
+  font-size: 18px;
+  text-align: center;
+  line-height: 30px;
+}
 
